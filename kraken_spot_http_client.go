@@ -2,12 +2,13 @@ package kraken
 
 import (
 	"encoding/json"
-	"fmt"
 	"io"
 	"net/http"
 	"net/url"
 	"strconv"
 )
+
+const DEFAULT_TRADES_CAPACITY int = 10
 
 type KrakenSpotHttpClient struct {
 	baseURL string
@@ -139,7 +140,7 @@ func (c *KrakenSpotHttpClient) GetAssetPairs() (map[string]KrakenSpotAssetPairIn
 	return d.Result, nil
 }
 
-func (c *KrakenSpotHttpClient) GetTickerInfo(pair string) (map[string]KrakenSpotAssetTickerInfo, error) {
+func (c *KrakenSpotHttpClient) GetTickerInfo(pair string) (KrakenSpotAssetTickerInfo, error) {
 	// query params
 	params := url.Values{}
 	params.Add("pair", pair)
@@ -149,26 +150,26 @@ func (c *KrakenSpotHttpClient) GetTickerInfo(pair string) (map[string]KrakenSpot
 	url := c.baseURL + endpoint + "?" + queryString
 	body, err := c.get(url)
 	if err != nil {
-		return nil, err
+		return KrakenSpotAssetTickerInfo{}, err
 	}
 
 	// Unmarshall the response body into a struct
 	var d KrakenTickerResponse
 	err = json.Unmarshal(body, &d)
 	if err != nil {
-		return nil, err
+		return KrakenSpotAssetTickerInfo{}, err
 	}
 
 	if len(d.Error) > 0 {
 		// FIXME: I don't know if len of errors is ever greater than 1.
 		// I don't see any examples of that on the kraken website
-		return nil, &KrakenError{d.Error[0]}
+		return KrakenSpotAssetTickerInfo{}, &KrakenError{d.Error[0]}
 	}
 
-	return d.Result, nil
+	return d.Result[pair], nil
 }
 
-func (c *KrakenSpotHttpClient) GetOrderBook(pair string, depth int) (map[string]KrakenSpotOrderBook, error) {
+func (c *KrakenSpotHttpClient) GetOrderBook(pair string, depth int) (KrakenSpotOrderBook, error) {
 	// query params
 	params := url.Values{}
 	params.Add("pair", pair)
@@ -179,23 +180,23 @@ func (c *KrakenSpotHttpClient) GetOrderBook(pair string, depth int) (map[string]
 	url := c.baseURL + endpoint + "?" + queryString
 	body, err := c.get(url)
 	if err != nil {
-		return nil, err
+		return KrakenSpotOrderBook{}, err
 	}
 
 	// Unmarshall the response body into a struct
 	var d KrakenSpotDepthResponse
 	err = json.Unmarshal(body, &d)
 	if err != nil {
-		return nil, err
+		return KrakenSpotOrderBook{}, err
 	}
 
 	if len(d.Error) > 0 {
 		// FIXME: I don't know if len of errors is ever greater than 1.
 		// I don't see any examples of that on the kraken website
-		return nil, &KrakenError{d.Error[0]}
+		return KrakenSpotOrderBook{}, &KrakenError{d.Error[0]}
 	}
 
-	return d.Result, nil
+	return d.Result[pair], nil
 }
 
 func (c *KrakenSpotHttpClient) GetTrades(pair string, since string, count int) (KrakenSpotTradeInfo, error) {
@@ -236,15 +237,16 @@ func (c *KrakenSpotHttpClient) GetTrades(pair string, since string, count int) (
 		return KrakenSpotTradeInfo{nil, ""}, &KrakenError{d.Error[0]}
 	}
 
-	out := make([]KrakenSpotTradeEntry, 0, 10)
+	out := make([]KrakenSpotTradeEntry, 0, DEFAULT_TRADES_CAPACITY)
 
 	result := d.Result
 	last := result["last"].(string)
-	fmt.Println("last:", last)
+
 	trades := result[pair].([]any)
 	for _, trades_ := range trades {
-		trade_info := trades_.([]any)
+
 		// [<price>, <volume>, <time>, <buy/sell>, <market/limit>, <miscellaneous>, <trade_id>]
+		trade_info := trades_.([]any)
 
 		trade_price, err := strconv.ParseFloat(trade_info[0].(string), 64)
 		if err != nil {
