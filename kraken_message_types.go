@@ -131,3 +131,31 @@ type KrakenSpotTradeResponse struct {
 	Error  []string       `json:"error"`
 	Result map[string]any `json:"result"`
 }
+
+type KrakenFuturesInstrumentsResponse struct {
+	Instruments []map[string]any `json:"instruments,omitempty"`
+	Result      string           `json:"result"`
+	ServerTime  string           `json:"serverTime"`
+	Error       string           `json:"error,omitempty"`
+	Errors      []string         `json:"errors,omitempty"`
+}
+
+type KrakenFuturesInstrumentStatus struct {
+	Symbol                                   string
+	IsExperiencingDislocation                bool
+	PriceDislocationDirection                string
+	IsExperiencingExtremeVolatility          bool
+	ExtremeVolatilityInitialMarginMultiplier int
+}
+
+type KrakenFuturesInstrumentStatusResponse struct {
+	Result                                   string   `json:"result"`
+	ServerTime                               string   `json:"serverTime"`
+	Error                                    string   `json:"error,omitempty"`
+	Errors                                   []string `json:"errors,omitempty"`
+	Symbol                                   string   `json:"tradeable,omitempty"`
+	IsExperiencingDislocation                bool     `json:"experiencingDislocation,omitempty"`
+	PriceDislocationDirection                string   `json:"priceDislocationDirection,omitempty"`
+	IsExperiencingExtremeVolatility          bool     `json:"experiencingExtremeVolatility,omitempty"`
+	ExtremeVolatilityInitialMarginMultiplier int      `json:"extremeVolatilityInitialMarginMultiplier,omitempty"`
+}
