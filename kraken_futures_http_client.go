@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"io"
 	"net/http"
+	"net/url"
 )
 
 type KrakenFuturesHttpClient struct {
@@ -81,4 +82,110 @@ func (c *KrakenFuturesHttpClient) GetInstrumentStatus(symbol string) (KrakenFutu
 	}
 
 	return status, nil
+}
+
+func (c *KrakenFuturesHttpClient) GetTicker(symbol string) (KrakenFuturesTickerInfo, error) {
+	endpoint := "/derivatives/api/v3/tickers"
+	url := c.baseURL + endpoint + "/" + symbol
+	body, err := c.get(url)
+	if err != nil {
+		return KrakenFuturesTickerInfo{}, err
+	}
+
+	var d KrakenFuturesTickerBySymbolResponse
+	err = json.Unmarshal(body, &d)
+	if err != nil {
+		return KrakenFuturesTickerInfo{}, err
+	}
+
+	if d.Result == "error" {
+		return KrakenFuturesTickerInfo{}, &KrakenError{d.Error}
+	}
+
+	return d.Ticker, nil
+}
+
+func (c *KrakenFuturesHttpClient) GetTradeHistory(symbol string, lastTime string) ([]KrakenFuturesTradeInfo, error) {
+	// query params
+	params := url.Values{}
+	params.Add("symbol", symbol)
+
+	// empty string means the query param for "lastTime" is ignored
+	if len(lastTime) > 0 {
+		params.Add("lastTime", lastTime)
+	}
+	queryString := params.Encode()
+
+	endpoint := "/derivatives/api/v3/history"
+	url := c.baseURL + endpoint + "?" + queryString
+	body, err := c.get(url)
+	if err != nil {
+		return nil, err
+	}
+
+	var d KrakenFuturesTradeHistoryResponse
+	err = json.Unmarshal(body, &d)
+	if err != nil {
+		return nil, err
+	}
+
+	if d.Result == "error" {
+		return nil, &KrakenError{d.Error}
+	}
+
+	return d.History, nil
+}
+
+func (c *KrakenFuturesHttpClient) GetOrderBook(symbol string) (KrakenFuturesOrderBook, error) {
+
+	// query params
+	params := url.Values{}
+	params.Add("symbol", symbol)
+	queryString := params.Encode()
+
+	endpoint := "/derivatives/api/v3/orderbook"
+	url := c.baseURL + endpoint + "?" + queryString
+	body, err := c.get(url)
+	if err != nil {
+		return KrakenFuturesOrderBook{}, err
+	}
+
+	var d KrakenFuturesOrderBookResponse
+	err = json.Unmarshal(body, &d)
+	if err != nil {
+		return KrakenFuturesOrderBook{}, err
+	}
+
+	if d.Result == "error" {
+		return KrakenFuturesOrderBook{}, &KrakenError{d.Error}
+	}
+
+	return d.OrderBook, nil
+}
+
+// FIXME: implement
+func (c *KrakenFuturesHttpClient) GetHistoricalFundingRates(symbol string) ([]KrakenFuturesFundingRate, error) {
+	// query params
+	params := url.Values{}
+	params.Add("symbol", symbol)
+	queryString := params.Encode()
+
+	endpoint := "/derivatives/api/v3/historical-funding-rates"
+	url := c.baseURL + endpoint + "?" + queryString
+	body, err := c.get(url)
+	if err != nil {
+		return nil, err
+	}
+
+	var d KrakenFuturesFundingRateResponse
+	err = json.Unmarshal(body, &d)
+	if err != nil {
+		return nil, err
+	}
+
+	if d.Result == "error" {
+		return nil, &KrakenError{d.Error}
+	}
+
+	return d.Rates, nil
 }
